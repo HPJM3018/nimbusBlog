@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tous les articles - Nimbus Blog</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <a href="/" class="logo">☁️ Nimbus Blog</a>
+                <ul class="nav-links">
+                    <li><a href="/">Accueil</a></li>
+                    <li><a href="/articles.html">Articles</a></li>
+                    <li id="admin-link" style="display: none;"><a href="/admin/dashboard.html">Admin</a></li>
+                    <li id="auth-link"><a href="/login.html">Connexion</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="articles-section">
+            <div class="container">
+                <h2>Tous les articles</h2>
+                <div id="articles-list" class="articles-grid">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Chargement des articles...</p>
+                    </div>
+                </div>
+                <div id="pagination" class="pagination"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Nimbus Blog - Propulsé par AWS et Laravel</p>
+        </div>
+    </footer>
+
+    <script type="module">
+        import { fetchArticles } from './js/api.js';
+        import { formatDate, truncateText } from './js/utils.js';
+        import { updateHeaderAuth, isAdmin } from './js/auth.js';
+        
+        updateHeaderAuth();
+        
+        let currentPage = 1;
+        const perPage = 9;
+        
+        async function loadArticles(page = 1) {
+            const container = document.getElementById('articles-list');
+            const paginationDiv = document.getElementById('pagination');
+            
+            container.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Chargement...</p></div>';
+            
+            const result = await fetchArticles(page, perPage);
+            
+            if (!result.success || result.data.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">Aucun article pour le moment.</p>';
+                paginationDiv.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = result.data.map(article => `
+                <article class="article-card">
+                    ${article.image_url ? `<img src="${article.image_url}" alt="${article.title}">` : ''}
+                    <h3>${article.title}</h3>
+                    <div class="meta">Publié le ${formatDate(article.published_at)}</div>
+                    <p class="excerpt">${truncateText(article.excerpt || article.content.replace(/<[^>]*>/g, ''), 120)}</p>
+                    <a href="/article.html?id=${article.id}" class="read-more">Lire l'article →</a>
+                </article>
+            `).join('');
+            
+            // Pagination
+            const totalPages = result.meta.last_page;
+            if (totalPages > 1) {
+                let paginationHtml = '';
+                for (let i = 1; i <= totalPages; i++) {
+                    paginationHtml += `<a href="#" data-page="${i}" class="${i === page ? 'active' : ''}">${i}</a>`;
+                }
+                paginationDiv.innerHTML = paginationHtml;
+                
+                document.querySelectorAll('.pagination a').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const newPage = parseInt(e.target.dataset.page);
+                        currentPage = newPage;
+                        loadArticles(currentPage);
+                        window.scrollTo(0, 0);
+                    });
+                });
+            } else {
+                paginationDiv.innerHTML = '';
+            }
+        }
+        
+        loadArticles(currentPage);
+        
+        if (isAdmin()) {
+            document.getElementById('admin-link').style.display = 'inline-block';
+        }
+    </script>
+</body>
+</html>

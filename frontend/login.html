@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Nimbus Blog</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <a href="/" class="logo">☁️ Nimbus Blog</a>
+                <ul class="nav-links">
+                    <li><a href="/">Accueil</a></li>
+                    <li><a href="/articles.html">Articles</a></li>
+                    <li id="admin-link" style="display: none;"><a href="/admin/dashboard.html">Admin</a></li>
+                    <li id="auth-link"><a href="/login.html">Connexion</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="form-container">
+            <h2>Connexion administrateur</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required value="admin@nimbus.com">
+                </div>
+                <div class="form-group">
+                    <label for="password">Mot de passe</label>
+                    <input type="password" id="password" name="password" required value="admin123">
+                </div>
+                <button type="submit" class="btn" style="width:100%">Se connecter</button>
+            </form>
+            <p style="text-align:center; margin-top:1rem; font-size:0.875rem; color:#666;">
+                Démo: admin@nimbus.com / admin123
+            </p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Nimbus Blog - Propulsé par AWS et Laravel</p>
+        </div>
+    </footer>
+
+    <script type="module">
+        import { login, redirectIfAuthenticated } from './js/auth.js';
+        import { showNotification } from './js/utils.js';
+        
+        // Rediriger si déjà connecté
+        redirectIfAuthenticated();
+        
+        const form = document.getElementById('login-form');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const result = await login(email, password);
+            
+            if (result.success) {
+                showNotification('Connexion réussie !', 'success');
+                setTimeout(() => {
+                    window.location.href = '/admin/dashboard.html';
+                }, 1000);
+            } else {
+                showNotification(result.message, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

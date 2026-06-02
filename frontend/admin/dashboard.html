@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Nimbus Blog Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <a href="/" class="logo">☁️ Nimbus Blog - Admin</a>
+                <ul class="nav-links">
+                    <li><a href="/">Voir le site</a></li>
+                    <li><a href="/admin/dashboard.html">Dashboard</a></li>
+                    <li><a href="#" id="logout-btn">Déconnexion</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Dashboard</h1>
+                <a href="/admin/edit.html" class="btn">+ Nouvel article</a>
+            </div>
+            
+            <div id="articles-table" class="articles-table">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Chargement des articles...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Nimbus Blog - Administration</p>
+        </div>
+    </footer>
+
+    <script type="module">
+        import { fetchArticles, deleteArticle } from '../js/api.js';
+        import { formatDate, showNotification, requireAuth } from '../js/utils.js';
+        
+        // Vérifier l'authentification
+        if (!requireAuth()) {
+            window.location.href = '/login.html';
+        }
+        
+        // Configurer la déconnexion
+        import { setupLogoutButton } from '../js/auth.js';
+        setupLogoutButton();
+        
+        async function loadArticles() {
+            const container = document.getElementById('articles-table');
+            const result = await fetchArticles(1, 50);
+            
+            if (!result.success || result.data.length === 0) {
+                container.innerHTML = '<p style="text-align:center; padding:2rem;">Aucun article. Créez votre premier article !</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Titre</th>
+                            <th>Date</th>
+                            <th>Auteur</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.data.map(article => `
+                            <tr>
+                                <td>${article.title}</td>
+                                <td>${formatDate(article.published_at)}</td>
+                                <td>${article.author || 'admin'}</td>
+                                <td class="action-buttons">
+                                    <a href="/article.html?id=${article.id}" class="btn-sm btn-outline" target="_blank" style="display:inline-block; padding:0.25rem 0.75rem; background:#f0f0f0; color:#333; border-radius:4px; text-decoration:none;">Voir</a>
+                                    <a href="/admin/edit.html?id=${article.id}" class="btn-sm" style="display:inline-block; padding:0.25rem 0.75rem; background:#00b4d8; color:white; border-radius:4px; text-decoration:none;">Modifier</a>
+                                    <button class="btn-sm btn-danger" data-id="${article.id}" data-title="${article.title}" style="padding:0.25rem 0.75rem; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer;">Supprimer</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            // Ajouter les événements de suppression
+            document.querySelectorAll('.btn-danger').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = btn.dataset.id;
+                    const title = btn.dataset.title;
+                    
+                    if (confirm(`Supprimer l'article "${title}" ?`)) {
+                        const result = await deleteArticle(id);
+                        if (result.success) {
+                            showNotification('Article supprimé avec succès', 'success');
+                            loadArticles(); // Recharger la liste
+                        } else {
+                            showNotification(result.message || 'Erreur lors de la suppression', 'error');
+                        }
+                    }
+                });
+            });
+        }
+        
+        loadArticles();
+    </script>
+</body>
+</html>
