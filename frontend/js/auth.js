@@ -1,24 +1,38 @@
-import { setAdminToken, logout, isAdmin } from './utils.js';
+import { API_URL } from './config.js';
 
-// Simulation d'authentification (à remplacer par Cognito plus tard)
-// Pour le développement, on utilise un mot de passe simple
-const ADMIN_EMAIL = 'admin@nimbus.com';
-const ADMIN_PASSWORD = 'admin123';
-
-// Connexion
 export async function login(email, password) {
-    // Simulation d'appel API
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // Créer un token factice
-        const fakeToken = btoa(JSON.stringify({ email, role: 'admin', exp: Date.now() + 3600000 }));
-        setAdminToken(fakeToken);
-        return { success: true, message: 'Connexion réussie' };
+    try {
+        const response = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            localStorage.setItem('adminToken', data.token);
+            return { success: true, message: 'Login successful' };
+        }
+        
+        return { success: false, message: data.message || 'Invalid credentials' };
+    } catch (error) {
+        console.error('Login error:', error);
+        return { success: false, message: 'Connection error' };
     }
-    
-    return { success: false, message: 'Email ou mot de passe incorrect' };
 }
 
-// Vérifier si l'utilisateur est connecté et rediriger si nécessaire
+export function logout() {
+    localStorage.removeItem('adminToken');
+    window.location.href = '/login.html';
+}
+
+export function isAdmin() {
+    return localStorage.getItem('adminToken') !== null;
+}
+
 export function requireAuth() {
     if (!isAdmin()) {
         window.location.href = '/login.html';
@@ -27,7 +41,6 @@ export function requireAuth() {
     return true;
 }
 
-// Rediriger vers le dashboard si déjà connecté
 export function redirectIfAuthenticated() {
     if (isAdmin()) {
         window.location.href = '/admin/dashboard.html';
@@ -36,7 +49,6 @@ export function redirectIfAuthenticated() {
     return false;
 }
 
-// Configurer le bouton de déconnexion dans le header
 export function setupLogoutButton() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -47,14 +59,13 @@ export function setupLogoutButton() {
     }
 }
 
-// Mettre à jour l'affichage du header selon l'authentification
 export function updateHeaderAuth() {
     const authLink = document.getElementById('auth-link');
     const adminLink = document.getElementById('admin-link');
     
     if (isAdmin()) {
         if (authLink) {
-            authLink.textContent = 'Déconnexion';
+            authLink.textContent = 'Logout';
             authLink.href = '#';
             authLink.onclick = (e) => {
                 e.preventDefault();
@@ -66,7 +77,7 @@ export function updateHeaderAuth() {
         }
     } else {
         if (authLink) {
-            authLink.textContent = 'Connexion';
+            authLink.textContent = 'Login';
             authLink.href = '/login.html';
             authLink.onclick = null;
         }

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Éditer l'article - Nimbus Blog Admin</title>
+    <title>Edit Article - Nimbus Blog Admin</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -12,9 +12,9 @@
             <div class="container">
                 <a href="/" class="logo">☁️ Nimbus Blog - Admin</a>
                 <ul class="nav-links">
-                    <li><a href="/">Voir le site</a></li>
+                    <li><a href="/">View Site</a></li>
                     <li><a href="/admin/dashboard.html">Dashboard</a></li>
-                    <li><a href="#" id="logout-btn">Déconnexion</a></li>
+                    <li><a href="#" id="logout-btn">Logout</a></li>
                 </ul>
             </div>
         </nav>
@@ -23,40 +23,40 @@
     <main>
         <div class="container">
             <div class="form-container" style="max-width: 800px;">
-                <h1 id="form-title">Nouvel article</h1>
+                <h1 id="form-title">New Article</h1>
                 
                 <form id="article-form">
                     <div class="form-group">
-                        <label for="title">Titre *</label>
-                        <input type="text" id="title" name="title" required placeholder="Titre de l'article">
+                        <label for="title">Title *</label>
+                        <input type="text" id="title" name="title" required placeholder="Article title">
                     </div>
                     
                     <div class="form-group">
                         <label for="image_url">Image URL</label>
                         <input type="url" id="image_url" name="image_url" placeholder="https://example.com/image.jpg">
-                        <small style="color:#666;">Laissez vide si pas d'image</small>
+                        <small style="color:#666;">Leave empty if no image</small>
                     </div>
                     
                     <div class="form-group">
-                        <label for="excerpt">Extrait (optionnel)</label>
-                        <textarea id="excerpt" name="excerpt" rows="3" placeholder="Court résumé de l'article..."></textarea>
-                        <small style="color:#666;">Laissez vide pour générer automatiquement</small>
+                        <label for="excerpt">Excerpt (optional)</label>
+                        <textarea id="excerpt" name="excerpt" rows="3" placeholder="Short summary of the article..."></textarea>
+                        <small style="color:#666;">Leave empty to generate automatically</small>
                     </div>
                     
                     <div class="form-group">
-                        <label for="content">Contenu *</label>
-                        <textarea id="content" name="content" rows="12" required placeholder="Contenu de l'article en HTML..."></textarea>
-                        <small style="color:#666;">Vous pouvez utiliser du HTML (balises p, strong, em, ul, li, etc.)</small>
+                        <label for="content">Content *</label>
+                        <textarea id="content" name="content" rows="12" required placeholder="Article content in HTML..."></textarea>
+                        <small style="color:#666;">You can use HTML (p, strong, em, ul, li, etc.)</small>
                     </div>
                     
                     <div class="form-group">
-                        <label for="tags">Tags (séparés par des virgules)</label>
+                        <label for="tags">Tags (comma separated)</label>
                         <input type="text" id="tags" name="tags" placeholder="cloud, aws, laravel, php">
                     </div>
                     
                     <div style="display: flex; gap: 1rem;">
-                        <button type="submit" class="btn">Publier</button>
-                        <a href="/admin/dashboard.html" class="btn btn-outline">Annuler</a>
+                        <button type="submit" class="btn">Publish</button>
+                        <a href="/admin/dashboard.html" class="btn btn-outline">Cancel</a>
                     </div>
                 </form>
             </div>
@@ -73,12 +73,12 @@
         import { fetchArticleById, createArticle, updateArticle } from '../js/api.js';
         import { getArticleIdFromUrl, showNotification, requireAuth } from '../js/utils.js';
         
-        // Vérifier l'authentification
+        // Check authentication
         if (!requireAuth()) {
             window.location.href = '/login.html';
         }
         
-        // Configurer la déconnexion
+        // Setup logout button
         import { setupLogoutButton } from '../js/auth.js';
         setupLogoutButton();
         
@@ -86,11 +86,11 @@
         const formTitle = document.getElementById('form-title');
         let articleId = null;
         
-        // Vérifier si on est en mode édition
+        // Check if editing mode
         const urlId = getArticleIdFromUrl();
         if (urlId) {
             articleId = urlId;
-            formTitle.textContent = 'Modifier l\'article';
+            formTitle.textContent = 'Edit Article';
             loadArticle(articleId);
         }
         
@@ -106,21 +106,21 @@
                     document.getElementById('content').value = article.content || '';
                     document.getElementById('tags').value = (article.tags || []).join(', ');
                 } else {
-                    showNotification('Article non trouvé', 'error');
+                    showNotification('Article not found', 'error');
                     setTimeout(() => {
                         window.location.href = '/admin/dashboard.html';
                     }, 1500);
                 }
             } catch (error) {
-                console.error('Erreur chargement article:', error);
-                showNotification('Erreur lors du chargement', 'error');
+                console.error('Error loading article:', error);
+                showNotification('Error loading article', 'error');
             }
         }
         
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Récupérer les valeurs
+            // Get values
             const title = document.getElementById('title').value.trim();
             const image_url = document.getElementById('image_url').value.trim();
             const excerpt = document.getElementById('excerpt').value.trim();
@@ -129,16 +129,16 @@
             
             // Validation
             if (!title) {
-                showNotification('Le titre est requis', 'error');
+                showNotification('Title is required', 'error');
                 return;
             }
             
             if (!content) {
-                showNotification('Le contenu est requis', 'error');
+                showNotification('Content is required', 'error');
                 return;
             }
             
-            // Traiter les tags
+            // Process tags
             const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             
             const articleData = {
@@ -153,24 +153,24 @@
                 let result;
                 
                 if (articleId) {
-                    // Mode édition
+                    // Edit mode
                     result = await updateArticle(articleId, articleData);
                 } else {
-                    // Mode création
+                    // Create mode
                     result = await createArticle(articleData);
                 }
                 
                 if (result.success) {
-                    showNotification(articleId ? 'Article modifié avec succès' : 'Article créé avec succès', 'success');
+                    showNotification(articleId ? 'Article updated successfully' : 'Article created successfully', 'success');
                     setTimeout(() => {
                         window.location.href = '/admin/dashboard.html';
                     }, 1500);
                 } else {
-                    showNotification(result.message || 'Erreur lors de l\'enregistrement', 'error');
+                    showNotification(result.message || 'Error saving article', 'error');
                 }
             } catch (error) {
-                console.error('Erreur soumission:', error);
-                showNotification('Erreur réseau', 'error');
+                console.error('Submit error:', error);
+                showNotification('Network error', 'error');
             }
         });
     </script>

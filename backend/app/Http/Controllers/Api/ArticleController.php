@@ -3,114 +3,117 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Aws\DynamoDb\DynamoDbClient;
+use Aws\DynamoDb\Exception\DynamoDbException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
 class ArticleController extends Controller
 {
-    private $storageFile = 'articles.json';
+    protected $dynamodb;
+    protected $tableName;
 
-    private function getStoragePath()
+    public function __construct()
     {
-        return storage_path('app/' . $this->storageFile);
-    }
-
-    private function getArticles()
-    {
-        $path = $this->getStoragePath();
-        if (!file_exists($path)) {
-            file_put_contents($path, json_encode([]));
-            return [];
-        }
-
-        $content = file_get_contents($path);
-        $articles = json_decode($content, true) ?: [];
-
-        // Trier par date de publication (du plus récent au plus ancien)
-        usort($articles, function($a, $b) {
-            return strtotime($b['published_at']) - strtotime($a['published_at']);
-        });
-
-        return $articles;
-    }
-
-    private function saveArticles($articles)
-    {
-        $path = $this->getStoragePath();
-        file_put_contents($path, json_encode($articles, JSON_PRETTY_PRINT));
+        $this->dynamodb = new DynamoDbClient([
+            'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'version' => 'latest',
+        ]);
+        $this->tableName = env('DYNAMODB_TABLE_ARTICLES', 'articles');
     }
 
     /**
-     * GET /api/articles - Liste des articles
+     * GET /api/articles - List all articles
      */
     public function index(Request $request)
     {
         try {
-            $articles = $this->getArticles();
+            $result = $this->dynamodb->scan([
+                'TableName' => $this->tableName,
+            ]);
 
-            // Pagination simple
-            $page = (int) $request->get('page', 1);
-            $perPage = (int) $request->get('per_page', 10);
-            $total = count($articles);
-            $lastPage = ceil($total / $perPage);
+            $articles = [];
+            foreach ($result['Items'] as $item) {
+                $article = [];
+                foreach ($item as $key => $value) {
+                    if ($key === 'tags') {
+                        $article[$key] = isset($value['L']) ? array_map(fn($tag) => $tag['S'], $value['L']) : [];
+                    } else {
+                        $article[$key] = reset($value);
+                    }
+                }
+                $articles[] = $article;
+            }
 
-            $offset = ($page - 1) * $perPage;
-            $paginatedArticles = array_slice($articles, $offset, $perPage);
+            // Sort by most recent first
+            usort($articles, function($a, $b) {
+                return strtotime($b['published_at']) - strtotime($a['published_at']);
+            });
 
             return response()->json([
                 'success' => true,
-                'data' => $paginatedArticles,
+                'data' => $articles,
                 'meta' => [
-                    'current_page' => $page,
-                    'per_page' => $perPage,
-                    'total' => $total,
-                    'last_page' => $lastPage
+                    'total' => count($articles),
+                    'last_page' => 1,
+                    'current_page' => 1,
+                    'per_page' => count($articles)
                 ]
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Erreur index articles: ' . $e->getMessage());
+        } catch (DynamoDbException $e) {
+            Log::error('DynamoDB error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération des articles'
+                'message' => 'Failed to fetch articles: ' . $e->getAwsErrorMessage()
             ], 500);
         }
     }
 
     /**
-     * GET /api/articles/{id} - Récupérer un article spécifique
+     * GET /api/articles/{id} - Get a single article
      */
     public function show($id)
     {
         try {
-            $articles = $this->getArticles();
+            $result = $this->dynamodb->getItem([
+                'TableName' => $this->tableName,
+                'Key' => ['id' => ['S' => $id]]
+            ]);
 
-            foreach ($articles as $article) {
-                if ($article['id'] === $id) {
-                    return response()->json([
-                        'success' => true,
-                        'data' => $article
-                    ]);
+            if (!isset($result['Item'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Article not found'
+                ], 404);
+            }
+
+            $article = [];
+            foreach ($result['Item'] as $key => $value) {
+                if ($key === 'tags') {
+                    $article[$key] = isset($value['L']) ? array_map(fn($tag) => $tag['S'], $value['L']) : [];
+                } else {
+                    $article[$key] = reset($value);
                 }
             }
 
             return response()->json([
-                'success' => false,
-                'message' => 'Article non trouvé'
-            ], 404);
+                'success' => true,
+                'data' => $article
+            ]);
 
-        } catch (\Exception $e) {
-            Log::error('Erreur show article: ' . $e->getMessage());
+        } catch (DynamoDbException $e) {
+            Log::error('DynamoDB error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la récupération de l\'article'
+                'message' => 'Failed to fetch article'
             ], 500);
         }
     }
 
     /**
-     * POST /api/admin/articles - Créer un article
+     * POST /api/admin/articles - Create a new article
      */
     public function store(Request $request)
     {
@@ -123,56 +126,53 @@ class ArticleController extends Controller
                 'tags' => 'nullable|array'
             ]);
 
-            $articles = $this->getArticles();
-
-            // Générer un slug unique
-            $slug = Str::slug($validated['title']);
-            $slug = $this->makeSlugUnique($slug, $articles);
-
             $id = Str::uuid()->toString();
+            $slug = Str::slug($validated['title']);
             $excerpt = $validated['excerpt'] ?? substr(strip_tags($validated['content']), 0, 160);
 
-            $article = [
-                'id' => $id,
-                'title' => $validated['title'],
-                'content' => $validated['content'],
-                'excerpt' => $excerpt,
-                'slug' => $slug,
-                'image_url' => $validated['image_url'] ?? '',
-                'tags' => $validated['tags'] ?? [],
-                'published_at' => now()->toIso8601String(),
-                'updated_at' => now()->toIso8601String(),
-                'author' => 'admin'
+            $item = [
+                'TableName' => $this->tableName,
+                'Item' => [
+                    'id' => ['S' => $id],
+                    'title' => ['S' => $validated['title']],
+                    'content' => ['S' => $validated['content']],
+                    'excerpt' => ['S' => $excerpt],
+                    'slug' => ['S' => $slug],
+                    'image_url' => ['S' => $validated['image_url'] ?? ''],
+                    'tags' => ['L' => array_map(fn($tag) => ['S' => $tag], $validated['tags'] ?? [])],
+                    'published_at' => ['S' => now()->toIso8601String()],
+                    'updated_at' => ['S' => now()->toIso8601String()],
+                    'author' => ['S' => $request->user['cognito:username'] ?? 'admin']
+                ]
             ];
 
-            $articles[] = $article;
-            $this->saveArticles($articles);
+            $this->dynamodb->putItem($item);
 
-            Log::info('Article créé', ['id' => $id, 'title' => $validated['title']]);
+            Log::info('Article created in DynamoDB', ['id' => $id, 'title' => $validated['title']]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Article créé avec succès',
+                'message' => 'Article created successfully',
                 'data' => ['id' => $id, 'slug' => $slug]
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur de validation',
+                'message' => 'Validation error',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
-            Log::error('Erreur création article: ' . $e->getMessage());
+        } catch (DynamoDbException $e) {
+            Log::error('Error creating article in DynamoDB: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la création de l\'article: ' . $e->getMessage()
+                'message' => 'Failed to create article: ' . $e->getAwsErrorMessage()
             ], 500);
         }
     }
 
     /**
-     * PUT /api/admin/articles/{id} - Mettre à jour un article
+     * PUT /api/admin/articles/{id} - Update an article
      */
     public function update(Request $request, $id)
     {
@@ -185,140 +185,111 @@ class ArticleController extends Controller
                 'tags' => 'nullable|array'
             ]);
 
-            $articles = $this->getArticles();
-            $found = false;
+            // Check if article exists
+            $check = $this->dynamodb->getItem([
+                'TableName' => $this->tableName,
+                'Key' => ['id' => ['S' => $id]]
+            ]);
 
-            foreach ($articles as $key => $article) {
-                if ($article['id'] === $id) {
-                    // Mettre à jour les champs
-                    if (isset($validated['title'])) {
-                        $articles[$key]['title'] = $validated['title'];
-                        $articles[$key]['slug'] = $this->makeSlugUnique(Str::slug($validated['title']), $articles, $id);
-                    }
-                    if (isset($validated['content'])) {
-                        $articles[$key]['content'] = $validated['content'];
-                        if (!isset($validated['excerpt'])) {
-                            $articles[$key]['excerpt'] = substr(strip_tags($validated['content']), 0, 160);
-                        }
-                    }
-                    if (isset($validated['excerpt'])) {
-                        $articles[$key]['excerpt'] = $validated['excerpt'];
-                    }
-                    if (isset($validated['image_url'])) {
-                        $articles[$key]['image_url'] = $validated['image_url'];
-                    }
-                    if (isset($validated['tags'])) {
-                        $articles[$key]['tags'] = $validated['tags'];
-                    }
-
-                    $articles[$key]['updated_at'] = now()->toIso8601String();
-                    $found = true;
-                    break;
-                }
-            }
-
-            if (!$found) {
+            if (!isset($check['Item'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Article non trouvé'
+                    'message' => 'Article not found'
                 ], 404);
             }
 
-            $this->saveArticles($articles);
+            $updateExpression = 'SET updated_at = :updated_at';
+            $expressionValues = [':updated_at' => ['S' => now()->toIso8601String()]];
 
-            Log::info('Article mis à jour', ['id' => $id]);
+            if (isset($validated['title'])) {
+                $updateExpression .= ', title = :title';
+                $expressionValues[':title'] = ['S' => $validated['title']];
+                $updateExpression .= ', slug = :slug';
+                $expressionValues[':slug'] = ['S' => Str::slug($validated['title'])];
+            }
+            if (isset($validated['content'])) {
+                $updateExpression .= ', content = :content';
+                $expressionValues[':content'] = ['S' => $validated['content']];
+            }
+            if (isset($validated['excerpt'])) {
+                $updateExpression .= ', excerpt = :excerpt';
+                $expressionValues[':excerpt'] = ['S' => $validated['excerpt']];
+            }
+            if (isset($validated['image_url'])) {
+                $updateExpression .= ', image_url = :image_url';
+                $expressionValues[':image_url'] = ['S' => $validated['image_url']];
+            }
+            if (isset($validated['tags'])) {
+                $updateExpression .= ', tags = :tags';
+                $expressionValues[':tags'] = ['L' => array_map(fn($tag) => ['S' => $tag], $validated['tags'])];
+            }
+
+            $this->dynamodb->updateItem([
+                'TableName' => $this->tableName,
+                'Key' => ['id' => ['S' => $id]],
+                'UpdateExpression' => $updateExpression,
+                'ExpressionAttributeValues' => $expressionValues
+            ]);
+
+            Log::info('Article updated in DynamoDB', ['id' => $id]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Article mis à jour'
+                'message' => 'Article updated successfully'
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur de validation',
+                'message' => 'Validation error',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
-            Log::error('Erreur mise à jour: ' . $e->getMessage());
+        } catch (DynamoDbException $e) {
+            Log::error('Error updating article in DynamoDB: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la mise à jour: ' . $e->getMessage()
+                'message' => 'Failed to update article: ' . $e->getAwsErrorMessage()
             ], 500);
         }
     }
 
     /**
-     * DELETE /api/admin/articles/{id} - Supprimer un article
+     * DELETE /api/admin/articles/{id} - Delete an article
      */
     public function destroy($id)
     {
         try {
-            $articles = $this->getArticles();
-            $found = false;
+            // Check if article exists
+            $check = $this->dynamodb->getItem([
+                'TableName' => $this->tableName,
+                'Key' => ['id' => ['S' => $id]]
+            ]);
 
-            foreach ($articles as $key => $article) {
-                if ($article['id'] === $id) {
-                    unset($articles[$key]);
-                    $found = true;
-                    break;
-                }
-            }
-
-            if (!$found) {
+            if (!isset($check['Item'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Article non trouvé'
+                    'message' => 'Article not found'
                 ], 404);
             }
 
-            $this->saveArticles(array_values($articles));
+            $this->dynamodb->deleteItem([
+                'TableName' => $this->tableName,
+                'Key' => ['id' => ['S' => $id]]
+            ]);
 
-            Log::info('Article supprimé', ['id' => $id]);
+            Log::info('Article deleted from DynamoDB', ['id' => $id]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Article supprimé'
+                'message' => 'Article deleted successfully'
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Erreur suppression: ' . $e->getMessage());
+        } catch (DynamoDbException $e) {
+            Log::error('Error deleting article from DynamoDB: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la suppression'
+                'message' => 'Failed to delete article: ' . $e->getAwsErrorMessage()
             ], 500);
         }
-    }
-
-    /**
-     * Vérifier et rendre un slug unique
-     */
-    private function makeSlugUnique($slug, $articles, $excludeId = null)
-    {
-        $originalSlug = $slug;
-        $counter = 1;
-
-        while ($this->slugExists($slug, $articles, $excludeId)) {
-            $slug = $originalSlug . '-' . $counter;
-            $counter++;
-        }
-
-        return $slug;
-    }
-
-    /**
-     * Vérifier si un slug existe déjà
-     */
-    private function slugExists($slug, $articles, $excludeId = null)
-    {
-        foreach ($articles as $article) {
-            if ($excludeId && $article['id'] === $excludeId) {
-                continue;
-            }
-            if ($article['slug'] === $slug) {
-                return true;
-            }
-        }
-        return false;
     }
 }
