@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - Nimbus Blog</title>
+    <title>Nimbus Blog</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
             <div class="container">
                 <a href="/" class="logo">☁️ Nimbus Blog</a>
                 <ul class="nav-links">
-                    <li><a href="/">Accueil</a></li>
+                    <li><a href="/">Home</a></li>
                     <li><a href="/articles.html">Articles</a></li>
                     <li id="admin-link" style="display: none;"><a href="/admin/dashboard.html">Admin</a></li>
                     <li id="auth-link"><a href="/login.html">Connexion</a></li>
@@ -23,7 +23,7 @@
 
     <main>
         <div class="form-container">
-            <h2>Connexion administrateur</h2>
+            <h2>Admin Connexion </h2>
             <form id="login-form">
                 <div class="form-group">
                     <label for="email">Email</label>
@@ -33,7 +33,7 @@
                     <label for="password">Mot de passe</label>
                     <input type="password" id="password" name="password" required value="admin123">
                 </div>
-                <button type="submit" class="btn" style="width:100%">Se connecter</button>
+                <button type="submit" class="btn" style="width:100%">Login</button>
             </form>
             <p style="text-align:center; margin-top:1rem; font-size:0.875rem; color:#666;">
                 Démo: admin@nimbus.com / admin123
@@ -65,7 +65,7 @@
             const result = await login(email, password);
             
             if (result.success) {
-                showNotification('Connexion réussie !', 'success');
+                showNotification('Login!', 'success');
                 setTimeout(() => {
                     window.location.href = '/admin/dashboard.html';
                 }, 1000);
