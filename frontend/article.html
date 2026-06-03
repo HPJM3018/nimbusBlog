@@ -10,12 +10,12 @@
     <header>
         <nav class="navbar">
             <div class="container">
-                <a href="/" class="logo">☁️ Nimbus Blog</a>
+                <a href="index.html" class="logo">☁️ Nimbus Blog</a>
                 <ul class="nav-links">
-                    <li><a href="/">Accueil</a></li>
-                    <li><a href="/articles.html">Articles</a></li>
-                    <li id="admin-link" style="display: none;"><a href="/admin/dashboard.html">Admin</a></li>
-                    <li id="auth-link"><a href="/login.html">Connexion</a></li>
+                    <li><a href="index.html">Accueil</a></li>
+                    <li><a href="articles.html">Articles</a></li>
+                    <li id="admin-link" style="display: none;"><a href="admin/dashboard.html">Admin</a></li>
+                    <li id="auth-link"><a href="login.html">Connexion</a></li>
                 </ul>
             </div>
         </nav>
@@ -34,19 +34,31 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Nimbus Blog - Propulsé par AWS et Laravel</p>
+            <p>&copy; 2025 Nimbus Blog - Propulsé par AWS</p>
         </div>
     </footer>
 
-    <script type="module">
-        import { fetchArticleById } from './js/api.js';
-        import { formatDate, getArticleIdFromUrl } from './js/utils.js';
-        import { updateHeaderAuth, isAdmin } from './js/auth.js';
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8000/api';
         
-        updateHeaderAuth();
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
+        
+        // Récupérer l'ID dans l'URL
+        function getArticleId() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
         
         async function loadArticle() {
-            const id = getArticleIdFromUrl();
+            const id = getArticleId();
             const container = document.getElementById('article-content');
             
             if (!id) {
@@ -54,36 +66,53 @@
                 return;
             }
             
-            const result = await fetchArticleById(id);
-            
-            if (!result.success || !result.data) {
-                container.innerHTML = '<p style="text-align:center;">Article non trouvé</p>';
-                return;
+            try {
+                const response = await fetch(`${API_URL}/articles/${id}`);
+                const data = await response.json();
+                
+                if (!data.success || !data.data) {
+                    container.innerHTML = '<p style="text-align:center;">Article non trouvé</p>';
+                    return;
+                }
+                
+                const article = data.data;
+                document.title = `${article.title} - Nimbus Blog`;
+                
+                container.innerHTML = `
+                    <h1>${article.title}</h1>
+                    <div class="article-meta">
+                        Publié le ${formatDate(article.published_at)} par ${article.author || 'Admin'}
+                    </div>
+                    ${article.image_url ? `<img src="${article.image_url}" alt="${article.title}" style="max-width:100%; border-radius:12px; margin-bottom:2rem;">` : ''}
+                    <div class="article-content">
+                        ${article.content}
+                    </div>
+                    <div style="margin-top: 2rem;">
+                        <a href="articles.html" class="btn btn-outline">← Retour aux articles</a>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                container.innerHTML = '<p style="text-align:center; color:red;">Erreur de chargement de l\'article</p>';
             }
-            
-            const article = result.data;
-            document.title = `${article.title} - Nimbus Blog`;
-            
-            container.innerHTML = `
-                <h1>${article.title}</h1>
-                <div class="article-meta">
-                    Publié le ${formatDate(article.published_at)} par ${article.author || 'Admin'}
-                </div>
-                ${article.image_url ? `<img src="${article.image_url}" alt="${article.title}" style="max-width:100%; border-radius:12px; margin-bottom:2rem;">` : ''}
-                <div class="article-content">
-                    ${article.content}
-                </div>
-                <div style="margin-top: 2rem;">
-                    <a href="/articles.html" class="btn btn-outline">← Retour aux articles</a>
-                </div>
-            `;
         }
         
-        loadArticle();
-        
-        if (isAdmin()) {
+        // Vérifier si admin est connecté
+        const token = localStorage.getItem('adminToken');
+        if (token) {
             document.getElementById('admin-link').style.display = 'inline-block';
+            const authLink = document.getElementById('auth-link');
+            authLink.textContent = 'Déconnexion';
+            authLink.href = '#';
+            authLink.onclick = () => {
+                localStorage.removeItem('adminToken');
+                window.location.reload();
+            };
         }
+        
+        // Charger l'article
+        loadArticle();
     </script>
 </body>
 </html>

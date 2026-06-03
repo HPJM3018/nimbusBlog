@@ -10,12 +10,12 @@
     <header>
         <nav class="navbar">
             <div class="container">
-                <a href="/" class="logo">☁️ Nimbus Blog</a>
+                <a href="index.html" class="logo">☁️ Nimbus Blog</a>
                 <ul class="nav-links">
-                    <li><a href="/">Accueil</a></li>
-                    <li><a href="/articles.html">Articles</a></li>
-                    <li id="admin-link" style="display: none;"><a href="/admin/dashboard.html">Admin</a></li>
-                    <li id="auth-link"><a href="/login.html">Connexion</a></li>
+                    <li><a href="index.html">Accueil</a></li>
+                    <li><a href="articles.html">Articles</a></li>
+                    <li id="admin-link" style="display: none;"><a href="admin/dashboard.html">Admin</a></li>
+                    <li id="auth-link"><a href="login.html">Connexion</a></li>
                 </ul>
             </div>
         </nav>
@@ -31,79 +31,73 @@
                         <p>Chargement des articles...</p>
                     </div>
                 </div>
-                <div id="pagination" class="pagination"></div>
             </div>
         </section>
     </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Nimbus Blog - Propulsé par AWS et Laravel</p>
+            <p>&copy; 2025 Nimbus Blog - Propulsé par AWS</p>
         </div>
     </footer>
 
-    <script type="module">
-        import { fetchArticles } from './js/api.js';
-        import { formatDate, truncateText } from './js/utils.js';
-        import { updateHeaderAuth, isAdmin } from './js/auth.js';
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8000/api';
         
-        updateHeaderAuth();
+        // Fonctions
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
         
-        let currentPage = 1;
-        const perPage = 9;
-        
-        async function loadArticles(page = 1) {
+        async function loadArticles() {
             const container = document.getElementById('articles-list');
-            const paginationDiv = document.getElementById('pagination');
             
-            container.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Chargement...</p></div>';
-            
-            const result = await fetchArticles(page, perPage);
-            
-            if (!result.success || result.data.length === 0) {
-                container.innerHTML = '<p style="text-align:center;">Aucun article pour le moment.</p>';
-                paginationDiv.innerHTML = '';
-                return;
-            }
-            
-            container.innerHTML = result.data.map(article => `
-                <article class="article-card">
-                    ${article.image_url ? `<img src="${article.image_url}" alt="${article.title}">` : ''}
-                    <h3>${article.title}</h3>
-                    <div class="meta">Publié le ${formatDate(article.published_at)}</div>
-                    <p class="excerpt">${truncateText(article.excerpt || article.content.replace(/<[^>]*>/g, ''), 120)}</p>
-                    <a href="/article.html?id=${article.id}" class="read-more">Lire l'article →</a>
-                </article>
-            `).join('');
-            
-            // Pagination
-            const totalPages = result.meta.last_page;
-            if (totalPages > 1) {
-                let paginationHtml = '';
-                for (let i = 1; i <= totalPages; i++) {
-                    paginationHtml += `<a href="#" data-page="${i}" class="${i === page ? 'active' : ''}">${i}</a>`;
-                }
-                paginationDiv.innerHTML = paginationHtml;
+            try {
+                const response = await fetch(`${API_URL}/articles`);
+                const data = await response.json();
                 
-                document.querySelectorAll('.pagination a').forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const newPage = parseInt(e.target.dataset.page);
-                        currentPage = newPage;
-                        loadArticles(currentPage);
-                        window.scrollTo(0, 0);
-                    });
-                });
-            } else {
-                paginationDiv.innerHTML = '';
+                if (!data.success || data.data.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;">Aucun article pour le moment.</p>';
+                    return;
+                }
+                
+                container.innerHTML = data.data.map(article => `
+                    <article class="article-card">
+                        ${article.image_url ? `<img src="${article.image_url}" alt="${article.title}">` : ''}
+                        <h3>${article.title}</h3>
+                        <div class="meta">Publié le ${formatDate(article.published_at)}</div>
+                        <p class="excerpt">${article.excerpt || article.content.replace(/<[^>]*>/g, '').substring(0, 100)}</p>
+                        <a href="article.html?id=${article.id}" class="read-more">Lire l'article →</a>
+                    </article>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                container.innerHTML = '<p style="text-align:center; color:red;">Erreur de chargement des articles</p>';
             }
         }
         
-        loadArticles(currentPage);
-        
-        if (isAdmin()) {
+        // Vérifier si admin est connecté
+        const token = localStorage.getItem('adminToken');
+        if (token) {
             document.getElementById('admin-link').style.display = 'inline-block';
+            const authLink = document.getElementById('auth-link');
+            authLink.textContent = 'Déconnexion';
+            authLink.href = '#';
+            authLink.onclick = () => {
+                localStorage.removeItem('adminToken');
+                window.location.reload();
+            };
         }
+        
+        // Charger les articles
+        loadArticles();
     </script>
 </body>
 </html>
