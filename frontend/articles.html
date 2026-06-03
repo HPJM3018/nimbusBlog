@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tous les articles - Nimbus Blog</title>
+    <title>Nimbus Blog</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -37,7 +37,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Nimbus Blog </p>
+            <p>&copy; 2026 Nimbus Blog </p>
         </div>
     </footer>
 
@@ -63,7 +63,7 @@
                 const data = await response.json();
                 
                 if (!data.success || data.data.length === 0) {
-                    container.innerHTML = '<p style="text-align:center;">Aucun article pour le moment.</p>';
+                    container.innerHTML = '<p style="text-align:center;">Nothing.</p>';
                     return;
                 }
                 
@@ -73,13 +73,13 @@
                         <h3>${article.title}</h3>
                         <div class="meta">Publié le ${formatDate(article.published_at)}</div>
                         <p class="excerpt">${article.excerpt || article.content.replace(/<[^>]*>/g, '').substring(0, 100)}</p>
-                        <a href="article.html?id=${article.id}" class="read-more">Lire l'article →</a>
+                        <a href="article.html?id=${article.id}" class="read-more">Read article →</a>
                     </article>
                 `).join('');
                 
             } catch (error) {
                 console.error('Erreur:', error);
-                container.innerHTML = '<p style="text-align:center; color:red;">Erreur de chargement des articles</p>';
+                container.innerHTML = '<p style="text-align:center; color:red;">Loading error articles</p>';
             }
         }
         
@@ -88,7 +88,7 @@
         if (token) {
             document.getElementById('admin-link').style.display = 'inline-block';
             const authLink = document.getElementById('auth-link');
-            authLink.textContent = 'Déconnexion';
+            authLink.textContent = 'Logout';
             authLink.href = '#';
             authLink.onclick = () => {
                 localStorage.removeItem('adminToken');
