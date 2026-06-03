@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,7 +12,7 @@
             <div class="container">
                 <a href="/" class="logo">☁️ Nimbus Blog - Admin</a>
                 <ul class="nav-links">
-                    <li><a href="/">Voir le site</a></li>
+                    <li><a href="/">View Site</a></li>
                     <li><a href="/admin/dashboard.html">Dashboard</a></li>
                     <li><a href="#" id="logout-btn">Logout</a></li>
                 </ul>
@@ -24,7 +24,7 @@
         <div class="container">
             <div class="dashboard-header">
                 <h1>Dashboard</h1>
-                <a href="/admin/edit.html" class="btn">+ New article</a>
+                <a href="/admin/edit.html" class="btn">+ New Article</a>
             </div>
             
             <div id="articles-table" class="articles-table">
@@ -46,12 +46,12 @@
         import { fetchArticles, deleteArticle } from '../js/api.js';
         import { formatDate, showNotification, requireAuth } from '../js/utils.js';
         
-        // Vérifier l'authentification
+        // Check authentication
         if (!requireAuth()) {
             window.location.href = '/login.html';
         }
         
-        // Configurer la déconnexion
+        // Setup logout button
         import { setupLogoutButton } from '../js/auth.js';
         setupLogoutButton();
         
@@ -60,7 +60,7 @@
             const result = await fetchArticles(1, 50);
             
             if (!result.success || result.data.length === 0) {
-                container.innerHTML = '<p style="text-align:center; padding:2rem;">Aucun article. Créez votre premier article !</p>';
+                container.innerHTML = '<p style="text-align:center; padding:2rem;">No articles yet. Create your first article!</p>';
                 return;
             }
             
@@ -70,7 +70,7 @@
                         <tr>
                             <th>Title</th>
                             <th>Date</th>
-                            <th>Autor</th>
+                            <th>Author</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -81,9 +81,9 @@
                                 <td>${formatDate(article.published_at)}</td>
                                 <td>${article.author || 'admin'}</td>
                                 <td class="action-buttons">
-                                    <a href="/article.html?id=${article.id}" class="btn-sm btn-outline" target="_blank" style="display:inline-block; padding:0.25rem 0.75rem; background:#f0f0f0; color:#333; border-radius:4px; text-decoration:none;">Voir</a>
-                                    <a href="/admin/edit.html?id=${article.id}" class="btn-sm" style="display:inline-block; padding:0.25rem 0.75rem; background:#00b4d8; color:white; border-radius:4px; text-decoration:none;">Modifier</a>
-                                    <button class="btn-sm btn-danger" data-id="${article.id}" data-title="${article.title}" style="padding:0.25rem 0.75rem; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer;">Supprimer</button>
+                                    <a href="/article.html?id=${article.id}" class="btn-sm btn-outline" target="_blank" style="display:inline-block; padding:0.25rem 0.75rem; background:#f0f0f0; color:#333; border-radius:4px; text-decoration:none;">View</a>
+                                    <a href="/admin/edit.html?id=${article.id}" class="btn-sm" style="display:inline-block; padding:0.25rem 0.75rem; background:#00b4d8; color:white; border-radius:4px; text-decoration:none;">Edit</a>
+                                    <button class="btn-sm btn-danger" data-id="${article.id}" data-title="${article.title}" style="padding:0.25rem 0.75rem; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -91,19 +91,19 @@
                 </table>
             `;
             
-            // Ajouter les événements de suppression
+            // Add delete events
             document.querySelectorAll('.btn-danger').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = btn.dataset.id;
                     const title = btn.dataset.title;
                     
-                    if (confirm(`Supprimer l'article "${title}" ?`)) {
+                    if (confirm(`Delete article "${title}"?`)) {
                         const result = await deleteArticle(id);
                         if (result.success) {
-                            showNotification('Article delete', 'success');
-                            loadArticles(); // Recharger la liste
+                            showNotification('Article deleted successfully', 'success');
+                            loadArticles(); // Reload list
                         } else {
-                            showNotification(result.message || 'Erreur to delete', 'error');
+                            showNotification(result.message || 'Error deleting article', 'error');
                         }
                     }
                 });
