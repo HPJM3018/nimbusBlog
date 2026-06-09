@@ -88,7 +88,7 @@
                         ${article.content}
                     </div>
                     <div style="margin-top: 2rem;">
-                        <a href="articles.html" class="btn btn-outline">← Retour aux articles</a>
+                        <a href="articles.html" class="btn btn-outline">← Before articles</a>
                     </div>
                 `;
                 
@@ -103,7 +103,7 @@
         if (token) {
             document.getElementById('admin-link').style.display = 'inline-block';
             const authLink = document.getElementById('auth-link');
-            authLink.textContent = 'Déconnexion';
+            authLink.textContent = 'Logout';
             authLink.href = '#';
             authLink.onclick = () => {
                 localStorage.removeItem('adminToken');

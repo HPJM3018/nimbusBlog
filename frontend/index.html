@@ -80,7 +80,7 @@
                         <h3>${article.title}</h3>
                         <div class="meta">Publié le ${formatDate(article.published_at)}</div>
                         <p class="excerpt">${article.excerpt || article.content.replace(/<[^>]*>/g, '').substring(0, 100)}</p>
-                        <a href="article.html?id=${article.id}" class="read-more">Lire l'article →</a>
+                        <a href="article.html?id=${article.id}" class="read-more">Read article →</a>
                     </article>
                 `).join('');
                 
