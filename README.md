@@ -89,18 +89,18 @@ COGNITO_REGION=us-east-1
 
 
 nimbus-blog/
-├── backend/           # Laravel API
-│   ├── app/           # Controllers, Middleware, Models
-│   ├── routes/        # API routes
-│   └── .env           # Environment configuration
-├── frontend/          # Static website
-│   ├── index.html     # Home page
-│   ├── articles.html  # Articles list
-│   ├── article.html   # Article detail
-│   ├── login.html     # Admin login
-│   ├── admin/         # Dashboard and edit pages
-│   ├── css/           # Styles
-│   └── js/            # API calls and auth logic
+├── backend/           (Laravel API)
+│   ├── app/           (Controllers, Middleware, Models) 
+│   ├── routes/        (API routes) 
+│   └── .env           (Environment configuration)
+├── frontend/          (Static website)
+│   ├── index.html     (Home page)
+│   ├── articles.html  (Articles list)
+│   ├── article.html   (Article detail)
+│   ├── login.html     (Admin login)
+│   ├── admin/         (Dashboard and edit pages)
+│   ├── css/           (Styles)
+│   └── js/            (PI calls and auth logic)
 └── README.md
 
 
